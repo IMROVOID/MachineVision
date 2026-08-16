@@ -1,0 +1,43 @@
+{
+  "schema_name": "football_identity.chunks_manifest",
+  "schema_version": 1,
+  "chunk_count": 2,
+  "chunks": [
+    {
+      "chunk_id": 0,
+      "start_frame": 0,
+      "end_frame": 9000,
+      "start_time_ms": 0,
+      "end_time_ms": 300000,
+      "source": "BASE_15FPS",
+      "config_id": "4a5c8989bb53e164478546b5e022fbe65287f3c4c9fa3e028bfaee52fb9cb8bc",
+      "attempt_count": 0,
+      "state": "COMPLETED",
+      "output_path": "pid01_detection/base/chunk-00000.parquet",
+      "row_count": 4500,
+      "checksum_sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+      "started_at": "2026-08-16T22:50:05+00:00",
+      "completed_at": "2026-08-16T22:52:30+00:00",
+      "failed_at": null,
+      "error_message": null
+    },
+    {
+      "chunk_id": 1,
+      "start_frame": 9000,
+      "end_frame": 18000,
+      "start_time_ms": 300000,
+      "end_time_ms": 600000,
+      "source": "BASE_15FPS",
+      "config_id": "4a5c8989bb53e164478546b5e022fbe65287f3c4c9fa3e028bfaee52fb9cb8bc",
+      "attempt_count": 0,
+      "state": "COMPLETED",
+      "output_path": "pid01_detection/base/chunk-00001.parquet",
+      "row_count": 4500,
+      "checksum_sha256": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+      "started_at": "2026-08-16T22:52:31+00:00",
+      "completed_at": "2026-08-16T22:55:00+00:00",
+      "failed_at": null,
+      "error_message": null
+    }
+  ]
+}

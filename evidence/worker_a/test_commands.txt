@@ -1,0 +1,5 @@
+# Mandatory Test Command:
+python -m pytest tests/contracts tests/runtime tests/artifacts tests/integration/test_detection_reader.py -q
+
+# Full Verbose Test Command:
+python -m pytest tests/contracts tests/runtime tests/artifacts tests/integration/test_detection_reader.py -v

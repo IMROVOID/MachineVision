@@ -1,0 +1,18 @@
+runs/<run_id>/
+  run_manifest.json
+  config.resolved.yaml
+  video_fingerprint.json
+  logs/
+    infrastructure.jsonl
+  pid01_detection/
+    detection_manifest.json
+    chunks.json
+    base/
+      chunk-00000.parquet
+      chunk-00001.parquet
+    audit/
+      chunk-00000.parquet
+    repair/
+      repair-<interval_id>.parquet
+    previews/
+    metrics/
