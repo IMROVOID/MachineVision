@@ -27,6 +27,9 @@ def write_detection_partition_atomic(
 ) -> tuple[int, int, str]:
     """Writes a detection table to Parquet atomically with strict validation.
 
+    # ponytail: Local filesystem atomic rename (os.replace).
+    # Ceiling: single host / NVMe storage. Upgrade path: cloud object store two-phase commit if moved to distributed storage.
+
     Steps:
     1. Write data to a temporary file in target directory.
     2. Flush and sync.

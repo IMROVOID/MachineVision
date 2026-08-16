@@ -289,7 +289,11 @@ class RunStateEngine:
             return "FAILED"
 
     def invalidate_run(self, reason: str) -> None:
-        """Invalidates entire run artifacts due to incompatibility."""
+        """Invalidates entire run artifacts due to incompatibility.
+        
+        # ponytail: Wave 1 implements PID-1 Detection artifact invalidation only.
+        # Ceiling: local stage reset. Upgrade path: DAG-based downstream invalidation across future PIDs.
+        """
         for c in self.chunks:
             c.state = "INVALIDATED"
             c.error_message = reason

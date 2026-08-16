@@ -41,7 +41,11 @@ class DetectionItem:
 
 
 class DetectionStreamReader:
-    """Streams validated detections across multiple chunk partitions without high memory overhead."""
+    """Streams validated detections across multiple chunk partitions without high memory overhead.
+    
+    # ponytail: Single-process streaming generator reading chunk-by-chunk batches.
+    # Ceiling: strictly bounded memory for 16 GB RAM. Upgrade path: background pre-fetch thread pool if reader becomes downstream bottleneck.
+    """
 
     def __init__(
         self,

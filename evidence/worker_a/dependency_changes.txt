@@ -1,0 +1,5 @@
+# Added Dependencies for Wave 1 Worker A (Detection Infrastructure & Integration):
+pyarrow==25.0.1
+pyyaml==6.0.3
+pydantic==2.12.5
+pytest==9.0.3

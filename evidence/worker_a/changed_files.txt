@@ -33,3 +33,4 @@ tests/integration/__init__.py
 tests/integration/test_detection_reader.py
 pyproject.toml
 README.md
+dependency_changes.txt
