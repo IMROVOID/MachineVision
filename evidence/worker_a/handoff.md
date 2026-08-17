@@ -1,6 +1,6 @@
 Work Order: Wave 1 / Worker A
 Status: PASS
-Repository branch and commit: master (initialized, ready for final commit)
+Repository branch and commit: 01_Wave01 (commit 07d5e55)
 Python and dependency versions: Python 3.14.3, pyarrow 25.0.1, pyyaml 6.0.3, pydantic 2.12.5, pytest 9.0.3
 Files created: 35 files (see evidence/worker_a/changed_files.txt)
 Files modified: 0
