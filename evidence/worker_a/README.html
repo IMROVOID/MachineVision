@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wave 1 (Worker A) Test Suite, Results &amp; Evidence Master Report</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --surface: #121215;
+      --surface-raised: #18181b;
+      --surface-subtle: #1f1f23;
+      --border: #27272a;
+      --border-light: #3f3f46;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --text-faint: #71717a;
+      --accent: #e4e4e7;
+      --accent-highlight: #ffffff;
+      --code-bg: #0d0d10;
+      --status-pass-bg: #18181b;
+      --status-pass-border: #3f3f46;
+      --status-pass-text: #e4e4e7;
+      --dot-pass: #22c55e;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      padding: 2.5rem 1.5rem;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .wrapper {
+      max-width: 1140px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    /* Document Header */
+    .doc-header {
+      padding: 2rem 2.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-raised);
+    }
+
+    .doc-meta-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .doc-id {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    h1 {
+      font-size: 1.625rem;
+      font-weight: 600;
+      color: var(--accent-highlight);
+      line-height: 1.3;
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.015em;
+    }
+
+    /* Spec Grid */
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 2px;
+    }
+
+    .spec-item {
+      padding: 0.875rem 1rem;
+      border-right: 1px solid var(--border);
+    }
+
+    .spec-item:last-child {
+      border-right: none;
+    }
+
+    .spec-item.full-width {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--border);
+      border-right: none;
+      background: var(--surface-raised);
+    }
+
+    .spec-label {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-faint);
+      margin-bottom: 0.25rem;
+    }
+
+    .spec-value {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--status-pass-text);
+      background: var(--status-pass-bg);
+      border: 1px solid var(--status-pass-border);
+      padding: 0.2rem 0.55rem;
+      border-radius: 2px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--dot-pass);
+    }
+
+    /* Content Area */
+    .doc-content {
+      padding: 2.25rem;
+    }
+
+    h2 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--accent-highlight);
+      margin: 2.5rem 0 1rem 0;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      letter-spacing: -0.01em;
+    }
+
+    h2:first-of-type {
+      margin-top: 0;
+    }
+
+    h2 .section-num {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      color: var(--text-faint);
+      font-weight: 400;
+    }
+
+    h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--text);
+      margin: 1.75rem 0 0.75rem 0;
+      letter-spacing: -0.005em;
+    }
+
+    h4 {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 1.25rem 0 0.5rem 0;
+    }
+
+    p {
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-size: 0.9375rem;
+    }
+
+    strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* Navigation Links Grid */
+    .nav-table {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.5rem;
+      margin: 1rem 0 2rem 0;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      padding: 0.6rem 0.85rem;
+      border-radius: 2px;
+      text-decoration: none;
+      color: var(--text);
+      font-size: 0.8125rem;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .nav-item:hover {
+      background: var(--surface-subtle);
+      border-color: var(--border-light);
+    }
+
+    .nav-item .nav-name {
+      font-weight: 500;
+    }
+
+    .nav-item .nav-file {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-faint);
+    }
+
+    /* Invariants List */
+    ol.invariants {
+      list-style: none;
+      counter-reset: inv-counter;
+      margin: 1rem 0 2rem 0;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--surface-raised);
+    }
+
+    ol.invariants > li {
+      counter-increment: inv-counter;
+      padding: 0.85rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 1rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      align-items: flex-start;
+    }
+
+    ol.invariants > li:last-child {
+      border-bottom: none;
+    }
+
+    ol.invariants > li::before {
+      content: counter(inv-counter, decimal-leading-zero);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-faint);
+      font-weight: 600;
+      padding-top: 0.15rem;
+      flex-shrink: 0;
+    }
+
+    ol.invariants > li strong {
+      color: var(--text);
+    }
+
+    /* Code & Terminal Blocks */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 1rem 1.15rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      line-height: 1.55;
+      color: #d4d4d8;
+      margin: 0.75rem 0 1.25rem 0;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.8125em;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      padding: 0.12rem 0.35rem;
+      border-radius: 2px;
+      color: var(--text);
+    }
+
+    pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    .code-comment { color: #71717a; }
+    .code-kw { color: #f4f4f5; font-weight: 600; }
+    .code-str { color: #a1a1aa; }
+    .code-num { color: #e4e4e7; }
+    .code-fn { color: #d4d4d8; }
+
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 0.85rem 0 1.75rem 0;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.8125rem;
+    }
+
+    th {
+      background: var(--surface-raised);
+      color: var(--text);
+      padding: 0.65rem 0.9rem;
+      font-weight: 600;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.65rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background-color: var(--surface-raised);
+    }
+
+    td code {
+      font-size: 0.75rem;
+      color: var(--text);
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .badge-pass-cell {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      color: #f4f4f5;
+      border-radius: 2px;
+      letter-spacing: 0.04em;
+    }
+
+    a {
+      color: var(--text);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      text-decoration-color: var(--border-light);
+      transition: text-decoration-color 0.15s ease, color 0.15s ease;
+    }
+
+    a:hover {
+      color: var(--accent-highlight);
+      text-decoration-color: var(--accent-highlight);
+    }
+
+    ol.setup-steps {
+      margin-left: 1.25rem;
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    ol.setup-steps li {
+      margin-bottom: 0.75rem;
+    }
+
+    /* Footer */
+    .doc-footer {
+      padding: 1.25rem 2.25rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface-raised);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--text-faint);
+      font-family: var(--font-mono);
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem 0.5rem;
+      }
+      .doc-content, .doc-header {
+        padding: 1.25rem;
+      }
+      .spec-grid {
+        grid-template-columns: 1fr;
+      }
+      .spec-item {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .spec-item:last-child {
+        border-bottom: none;
+      }
+      .doc-footer {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        color: #000000;
+        padding: 0;
+      }
+      .wrapper {
+        border: none;
+        background: #ffffff;
+      }
+      .doc-header, .doc-footer, .spec-grid, .spec-item, pre, table, th, td {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border-color: #cccccc !important;
+      }
+      a {
+        color: #000000;
+        text-decoration: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <header class="doc-header">
+    <div class="doc-meta-top">
+      <span class="doc-id">REPORT // W1-DETECTION-INFRA</span>
+      <span>CLASSIFICATION: AUDIT EVIDENCE &bull; WAVE 1</span>
+    </div>
+    <h1>Wave 1 (Worker A) Test Suite, Results &amp; Evidence Master Report</h1>
+    
+    <div class="spec-grid">
+      <div class="spec-item">
+        <div class="spec-label">Module</div>
+        <div class="spec-value">Detection Infrastructure &amp; Data Plane</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Role</div>
+        <div class="spec-value">Worker A — Core Infrastructure</div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Verification Status</div>
+        <div class="spec-value">
+          <span class="status-badge">
+            <span class="status-dot"></span>
+            100% PASS (35/35)
+          </span>
+        </div>
+      </div>
+      <div class="spec-item">
+        <div class="spec-label">Target Hardware</div>
+        <div class="spec-value">RTX 4050, i7-13700, 16 GB RAM</div>
+      </div>
+      <div class="spec-item full-width">
+        <div class="spec-label">Target Input</div>
+        <div class="spec-value">One full-match 4K (3840×2160), 30 FPS football video (~180,000 frames)</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="doc-content">
+    <h2><span class="section-num">00</span> Quick Navigation</h2>
+    <div class="nav-table">
+      <a class="nav-item" href="./handoff.md">
+        <span class="nav-name">Handoff Summary</span>
+        <span class="nav-file">handoff.md</span>
+      </a>
+      <a class="nav-item" href="./requirements_matrix.md">
+        <span class="nav-name">Requirements Matrix</span>
+        <span class="nav-file">requirements_matrix.md</span>
+      </a>
+      <a class="nav-item" href="./test_commands.txt">
+        <span class="nav-name">Test Commands</span>
+        <span class="nav-file">test_commands.txt</span>
+      </a>
+      <a class="nav-item" href="./test_output.txt">
+        <span class="nav-name">Full Test Output</span>
+        <span class="nav-file">test_output.txt</span>
+      </a>
+      <a class="nav-item" href="./corruption_test_result.txt">
+        <span class="nav-name">Corruption Test Output</span>
+        <span class="nav-file">corruption_test_result.txt</span>
+      </a>
+      <a class="nav-item" href="./resume_test_result.txt">
+        <span class="nav-name">Resume Test Output</span>
+        <span class="nav-file">resume_test_result.txt</span>
+      </a>
+      <a class="nav-item" href="./detection_reader_smoke_result.txt">
+        <span class="nav-name">Smoke Integration Output</span>
+        <span class="nav-file">detection_reader_smoke_result.txt</span>
+      </a>
+      <a class="nav-item" href="./sample_manifest.json">
+        <span class="nav-name">Sample Manifest</span>
+        <span class="nav-file">sample_manifest.json</span>
+      </a>
+      <a class="nav-item" href="./sample_chunks.json">
+        <span class="nav-name">Sample Chunks</span>
+        <span class="nav-file">sample_chunks.json</span>
+      </a>
+      <a class="nav-item" href="./preflight.md">
+        <span class="nav-name">Preflight Report</span>
+        <span class="nav-file">preflight.md</span>
+      </a>
+      <a class="nav-item" href="./changed_files.txt">
+        <span class="nav-name">Changed Files Inventory</span>
+        <span class="nav-file">changed_files.txt</span>
+      </a>
+      <a class="nav-item" href="./known_issues.md">
+        <span class="nav-name">Known Limitations</span>
+        <span class="nav-file">known_issues.md</span>
+      </a>
+    </div>
+
+    <h2><span class="section-num">01</span> Executive Summary &amp; Wave 1 Overview</h2>
+    <p>Wave 1 implements the deterministic <strong>Detection data plane and run-state infrastructure</strong> required to store, validate, resume, and expose PID-1 player detections to downstream stages (PID-2 Local Tracking, Re-ID, Identity Graph).</p>
+
+    <h3>Key Architectural Invariants</h3>
+    <ol class="invariants">
+      <li>
+        <div><strong>Deterministic Serialization:</strong> PyArrow Parquet storage with Snappy compression; zero detector-specific Python objects or pickle files.</div>
+      </li>
+      <li>
+        <div><strong>Strict Invariant Validation:</strong> Zero out-of-bounds bounding boxes, strict float finiteness, derived bottom centers ((x₁ + x₂)/2, y₂) within tolerance, unique composite keys <code>(run_id, source, frame_id, tile_id, detection_index)</code>, monotonic frame/time ordering.</div>
+      </li>
+      <li>
+        <div><strong>Atomic Publication:</strong> Two-phase publish (<code>.tmp.&lt;uuid&gt;</code> &rarr; flush/sync &rarr; read-back validate &rarr; <code>os.replace</code>) prevents partial or corrupted artifacts on process crash.</div>
+      </li>
+      <li>
+        <div><strong>Canonical Config Identity:</strong> SHA-256 hash invariant to YAML formatting, comments, or key order, but sensitive to any semantic config change.</div>
+      </li>
+      <li>
+        <div><strong>Byte-Level Video Fingerprint:</strong> Source video identified by byte SHA-256 rather than file path.</div>
+      </li>
+      <li>
+        <div><strong>Fault-Tolerant State Engine:</strong> Reuses completed, checksum-verified chunks; retries failed or interrupted chunks; invalidates on config or video mismatch.</div>
+      </li>
+      <li>
+        <div><strong>Detector-Neutral PID-2 Streaming Reader:</strong> Generator-based streaming reading chunk-by-chunk with bounded memory (&lt; 16 GB RAM) across chunk boundaries without importing PyTorch, Ultralytics, TensorRT, or CUDA.</div>
+      </li>
+    </ol>
+
+    <h2><span class="section-num">02</span> Directory &amp; Artifact Structure</h2>
+    <pre><code>MachineVision/
+├── pyproject.toml
+├── README.md
+├── dependency_changes.txt
+├── docs/
+│   └── 01_wave1_detection_infrastructure_work_order.md
+├── src/
+│   └── football_identity/
+│       ├── __init__.py
+│       ├── contracts/
+│       │   ├── __init__.py
+│       │   ├── config.py             <span class="code-comment"># Canonical configuration hashing & loading</span>
+│       │   ├── detection.py          <span class="code-comment"># PyArrow detection schema & row/table validation</span>
+│       │   └── video.py              <span class="code-comment"># Source video SHA-256 fingerprinting</span>
+│       ├── artifacts/
+│       │   ├── __init__.py
+│       │   ├── layout.py             <span class="code-comment"># Standardized run directory hierarchy</span>
+│       │   ├── manifest.py           <span class="code-comment"># Detection manifest & partition inventory</span>
+│       │   ├── parquet_writer.py     <span class="code-comment"># Atomic Parquet writer with disk validation</span>
+│       │   └── parquet_reader.py     <span class="code-comment"># Streaming Parquet reader with predicate filters</span>
+│       ├── runtime/
+│       │   ├── __init__.py
+│       │   ├── chunk_planner.py      <span class="code-comment"># Non-overlapping contiguous chunk scheduler</span>
+│       │   ├── chunk_state.py        <span class="code-comment"># Chunk record dataclass & manifest serialization</span>
+│       │   ├── logger.py             <span class="code-comment"># Structured JSONL infrastructure logger</span>
+│       │   └── state_engine.py       <span class="code-comment"># Execution lifecycle, resume, retry, invalidation</span>
+│       └── integration/
+│           ├── __init__.py
+│           └── detection_reader.py   <span class="code-comment"># Neutral streaming reader for PID-2 consumers</span>
+├── tests/
+│   ├── README.md                     <span class="code-comment"># Lightweight test quick-start</span>
+│   ├── contracts/
+│   │   ├── test_config.py            <span class="code-comment"># Canonical hash stability & sensitivity tests</span>
+│   │   ├── test_detection.py         <span class="code-comment"># Schema, coordinate, and table invariant tests</span>
+│   │   └── test_video.py             <span class="code-comment"># Video fingerprinting & mismatch tests</span>
+│   ├── runtime/
+│   │   ├── test_chunk_planner.py     <span class="code-comment"># Chunk boundary and remainder calculations</span>
+│   │   ├── test_invalidation.py      <span class="code-comment"># Video and config change invalidation tests</span>
+│   │   ├── test_resume_retry.py      <span class="code-comment"># Chunk reuse, retry, and corruption recovery</span>
+│   │   └── test_state_engine.py      <span class="code-comment"># Complete run execution lifecycle tests</span>
+│   ├── artifacts/
+│   │   ├── test_atomic_publication.py <span class="code-comment"># Validation failure & disk crash recovery</span>
+│   │   ├── test_layout.py            <span class="code-comment"># Directory structure & path resolution tests</span>
+│   │   ├── test_manifest.py          <span class="code-comment"># Manifest serialization & checksum integrity</span>
+│   │   └── test_parquet_io.py        <span class="code-comment"># Parquet read/write round-trip & filtering</span>
+│   └── integration/
+│       └── test_detection_reader.py  <span class="code-comment"># Two-chunk boundary traversal & isolation</span>
+└── evidence/
+    └── worker_a/                     <span class="code-comment"># Formal delivery & audit package</span>
+        ├── README.md                 <span class="code-comment"># This master report</span>
+        ├── handoff.md
+        ├── requirements_matrix.md
+        ├── preflight.md
+        ├── changed_files.txt
+        ├── dependency_versions.txt
+        ├── dependency_changes.txt
+        ├── artifact_tree.txt
+        ├── test_commands.txt
+        ├── test_output.txt
+        ├── corruption_test_result.txt
+        ├── resume_test_result.txt
+        ├── detection_reader_smoke_result.txt
+        ├── sample_manifest.json
+        ├── sample_chunks.json
+        └── known_issues.md</code></pre>
+
+    <h2><span class="section-num">03</span> Complete Test Catalog (35 Tests)</h2>
+
+    <h3>3.1 tests/contracts/ &mdash; Contracts &amp; Schema Invariants (16 Tests)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Test Routine</th>
+            <th>Source File</th>
+            <th>Verification Scope</th>
+            <th class="text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>test_canonical_hash_stability</code></td>
+            <td><a href="../../tests/contracts/test_config.py"><code>test_config.py</code></a></td>
+            <td>Proves identical config objects produce the exact same 64-char SHA-256 hash repeatedly.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_canonical_hash_key_order_and_yaml_insensitivity</code></td>
+            <td><a href="../../tests/contracts/test_config.py"><code>test_config.py</code></a></td>
+            <td>Verifies hash is invariant to dictionary key order, YAML whitespace, and comments.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_canonical_hash_sensitivity_to_each_field</code></td>
+            <td><a href="../../tests/contracts/test_config.py"><code>test_config.py</code></a></td>
+            <td>Proves mutating any single identity-bearing field (model, weights, backend, resolution, FPS policies, batch size, thresholds, tile policy) alters the hash.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_valid_detection_row_passes</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Validates that a standard compliant <code>DetectionRow</code> passes all contract checks.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_invalid_schema_version_rejected</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Rejects records with <code>schema_version != 1</code>.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_invalid_source_rejected</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Rejects unknown sources outside <code>{"BASE_15FPS", "AUDIT_TILE_1FPS", "REPAIR_30FPS"}</code>.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_nan_inf_rejected</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Ensures <code>NaN</code>, <code>+Inf</code>, <code>-Inf</code> values in coordinates or confidence are rejected.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_inverted_or_negative_box_rejected</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Rejects inverted boxes (x₁ &ge; x₂, y₁ &ge; y₂) or negative pixel coordinates (x₁ &lt; 0, y₁ &lt; 0).</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_out_of_bounds_and_clipping</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Tests boundary enforcement against image resolution (x₂ &gt; W, y₂ &gt; H) and tests <code>clip_box_to_image</code>.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_bottom_center_tolerance</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Validates bottom center derivation within declared tolerance (10⁻³), rejecting arbitrary coordinates.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_confidence_bounds</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Rejects confidence values outside [0.0, 1.0].</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_table_validation_valid_and_duplicates</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Vectorized table validation; rejects duplicate keys across <code>(run_id, source, frame_id, tile_id, detection_index)</code>.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_table_validation_non_monotonic_ordering</code></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td>Ensures frames and timestamps are strictly non-decreasing within each partition.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_compute_video_sha256</code></td>
+            <td><a href="../../tests/contracts/test_video.py"><code>test_video.py</code></a></td>
+            <td>Proves streaming byte-level SHA-256 calculation matches file content digest.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_valid_video_fingerprint</code></td>
+            <td><a href="../../tests/contracts/test_video.py"><code>test_video.py</code></a></td>
+            <td>Validates serialization and deserialization of <code>VideoFingerprint</code>.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_invalid_video_fingerprint_rejections</code></td>
+            <td><a href="../../tests/contracts/test_video.py"><code>test_video.py</code></a></td>
+            <td>Rejects invalid video fingerprints (corrupt SHA-256 length, negative dimensions, negative FPS).</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.2 tests/runtime/ &mdash; State Engine, Planner &amp; Resilience (8 Tests)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Test Routine</th>
+            <th>Source File</th>
+            <th>Verification Scope</th>
+            <th class="text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>test_chunk_planning_300s_30fps</code></td>
+            <td><a href="../../tests/runtime/test_chunk_planner.py"><code>test_chunk_planner.py</code></a></td>
+            <td>Tests planning 18,000 frames (10 min) into 300-second non-overlapping chunks (9,000 frames each).</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_chunk_planning_with_remainder</code></td>
+            <td><a href="../../tests/runtime/test_chunk_planner.py"><code>test_chunk_planner.py</code></a></td>
+            <td>Tests chunk planning when total frames do not evenly divide, ensuring 100% frame coverage.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_invalid_parameters</code></td>
+            <td><a href="../../tests/runtime/test_chunk_planner.py"><code>test_chunk_planner.py</code></a></td>
+            <td>Rejects negative or zero FPS, total frames, or chunk duration.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_invalidation_on_config_change</code></td>
+            <td><a href="../../tests/runtime/test_invalidation.py"><code>test_invalidation.py</code></a></td>
+            <td>Proves that attempting to resume a run with a modified model or config transitions run to <code>INVALIDATED</code>.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_invalidation_on_video_mismatch</code></td>
+            <td><a href="../../tests/runtime/test_invalidation.py"><code>test_invalidation.py</code></a></td>
+            <td>Proves that resuming with a different source video SHA-256 invalidates the existing artifacts.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_resume_reuses_completed_and_retries_incomplete</code></td>
+            <td><a href="../../tests/runtime/test_resume_retry.py"><code>test_resume_retry.py</code></a></td>
+            <td>Proves completed chunks with verified checksums are untouched while interrupted/running chunks are retried.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_corruption_detection_triggers_retry</code></td>
+            <td><a href="../../tests/runtime/test_resume_retry.py"><code>test_resume_retry.py</code></a></td>
+            <td>Detects on-disk byte corruption via SHA-256 mismatch and automatically marks chunk for re-execution.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_state_engine_lifecycle</code></td>
+            <td><a href="../../tests/runtime/test_state_engine.py"><code>test_state_engine.py</code></a></td>
+            <td>Executes full lifecycle: initialize &rarr; running &rarr; completed partitions &rarr; manifest finalization to <code>COMPLETED</code>.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.3 tests/artifacts/ &mdash; Artifacts, Layout &amp; Atomic IO (8 Tests)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Test Routine</th>
+            <th>Source File</th>
+            <th>Verification Scope</th>
+            <th class="text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>test_atomic_publication_on_validation_failure</code></td>
+            <td><a href="../../tests/artifacts/test_atomic_publication.py"><code>test_atomic_publication.py</code></a></td>
+            <td>Validates that invalid table data fails before rename, leaving zero corrupt or leftover temp files.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_atomic_publication_on_disk_error</code></td>
+            <td><a href="../../tests/artifacts/test_atomic_publication.py"><code>test_atomic_publication.py</code></a></td>
+            <td>Simulates disk crash during rename; verifies no partial file is published.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_artifact_layout_structure</code></td>
+            <td><a href="../../tests/artifacts/test_layout.py"><code>test_layout.py</code></a></td>
+            <td>Verifies <code>RunArtifactLayout</code> creates exact required subdirectories (<code>base/</code>, <code>audit/</code>, <code>repair/</code>, <code>logs/</code>, etc.).</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_manifest_save_and_load</code></td>
+            <td><a href="../../tests/artifacts/test_manifest.py"><code>test_manifest.py</code></a></td>
+            <td>Tests atomic manifest saving and round-trip loading.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_manifest_state_transitions</code></td>
+            <td><a href="../../tests/artifacts/test_manifest.py"><code>test_manifest.py</code></a></td>
+            <td>Verifies legal states (<code>IN_PROGRESS</code>, <code>COMPLETED</code>, <code>FAILED</code>, <code>INVALIDATED</code>) and rejects bogus states.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_manifest_integrity_verification</code></td>
+            <td><a href="../../tests/artifacts/test_manifest.py"><code>test_manifest.py</code></a></td>
+            <td>Tests detection of missing files, size mismatches, and tampered checksums in partition inventory.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_parquet_write_and_read_roundtrip</code></td>
+            <td><a href="../../tests/artifacts/test_parquet_io.py"><code>test_parquet_io.py</code></a></td>
+            <td>Writes valid table to Parquet and reads back full table, verifying numeric and schema fidelity.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_parquet_streaming_batches_and_filtering</code></td>
+            <td><a href="../../tests/artifacts/test_parquet_io.py"><code>test_parquet_io.py</code></a></td>
+            <td>Tests chunked batch streaming with confidence and frame range predicate filtering.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.4 tests/integration/ &mdash; PID-2 Integration &amp; Smoke (3 Tests)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Test Routine</th>
+            <th>Source File</th>
+            <th>Verification Scope</th>
+            <th class="text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>test_two_chunk_boundary_traversal</code></td>
+            <td><a href="../../tests/integration/test_detection_reader.py"><code>test_detection_reader.py</code></a></td>
+            <td>Streams detections across chunk boundary (frame 290 to 310 across chunk 0 &amp; 1), verifying continuous ordering.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_source_and_confidence_filtering</code></td>
+            <td><a href="../../tests/integration/test_detection_reader.py"><code>test_detection_reader.py</code></a></td>
+            <td>Verifies multi-source partition filtering (<code>AUDIT_TILE_1FPS</code> vs <code>BASE_15FPS</code>) and confidence filtering.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><code>test_detector_independence</code></td>
+            <td><a href="../../tests/integration/test_detection_reader.py"><code>test_detection_reader.py</code></a></td>
+            <td>Proves <code>DetectionStreamReader</code> does NOT import <code>torch</code>, <code>torchvision</code>, <code>ultralytics</code>, <code>cv2</code>, <code>cuda</code>, or <code>tensorrt</code>.</td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2><span class="section-num">04</span> Test Execution Guide</h2>
+
+    <h3>4.1 Environment Setup</h3>
+    <ol class="setup-steps">
+      <li><strong>Python Runtime:</strong> Ensure Python 3.10+ (tested on Python 3.14.3) is active.</li>
+      <li><strong>Dependency Installation:</strong>
+        <p style="margin: 0.35rem 0;">From the repository root:</p>
+        <pre><code>pip install -e .</code></pre>
+        <p style="margin: 0.35rem 0;">Or install explicit dependencies:</p>
+        <pre><code>pip install pyarrow>=14.0.0 pyyaml>=6.0 pydantic>=2.0 pytest>=8.0</code></pre>
+      </li>
+    </ol>
+
+    <h3>4.2 Running the Test Suite</h3>
+
+    <h4>1. Run Complete Mandatory Test Suite (Single Command)</h4>
+    <pre><code>python -m pytest tests/contracts tests/runtime tests/artifacts tests/integration/test_detection_reader.py -q</code></pre>
+    <p><em>Expected Output:</em></p>
+    <pre><code>...................................                                      [100%]
+35 passed in 0.86s</code></pre>
+
+    <h4>2. Run Verbose Output with All Test Names</h4>
+    <pre><code>python -m pytest tests/contracts tests/runtime tests/artifacts tests/integration/test_detection_reader.py -v</code></pre>
+
+    <h4>3. Run Specific Test Suites</h4>
+    <pre><code><span class="code-comment"># Run Contracts Suite</span>
+python -m pytest tests/contracts -v
+
+<span class="code-comment"># Run Runtime / State Engine Suite</span>
+python -m pytest tests/runtime -v
+
+<span class="code-comment"># Run Artifacts / Parquet IO Suite</span>
+python -m pytest tests/artifacts -v
+
+<span class="code-comment"># Run PID-2 Integration Suite</span>
+python -m pytest tests/integration -v</code></pre>
+
+    <h4>4. Run Individual Test Scenarios</h4>
+    <pre><code><span class="code-comment"># Test Corruption Detection and Automatic Retry</span>
+python -m pytest tests/runtime/test_resume_retry.py::test_corruption_detection_triggers_retry -v
+
+<span class="code-comment"># Test Resume and Re-use of Completed Chunks</span>
+python -m pytest tests/runtime/test_resume_retry.py::test_resume_reuses_completed_and_retries_incomplete -v
+
+<span class="code-comment"># Test Multi-Chunk Boundary Traversal for PID-2</span>
+python -m pytest tests/integration/test_detection_reader.py::test_two_chunk_boundary_traversal -v
+
+<span class="code-comment"># Test Invalidation on Config Change</span>
+python -m pytest tests/runtime/test_invalidation.py::test_invalidation_on_config_change -v</code></pre>
+
+    <h2><span class="section-num">05</span> Manual Testing &amp; Backend API Guide</h2>
+
+    <h3>5.1 Writing &amp; Reading Parquet Partitions</h3>
+    <pre><code><span class="code-kw">import</span> pyarrow <span class="code-kw">as</span> pa
+<span class="code-kw">from</span> football_identity.contracts.detection <span class="code-kw">import</span> (
+    DETECTION_PYARROW_SCHEMA,
+    DETECTION_SCHEMA_VERSION,
+    compute_bottom_center,
+)
+<span class="code-kw">from</span> football_identity.artifacts.parquet_writer <span class="code-kw">import</span> write_detection_partition_atomic
+<span class="code-kw">from</span> football_identity.artifacts.parquet_reader <span class="code-kw">import</span> stream_partition_batches
+
+<span class="code-comment"># 1. Create compliant detection rows</span>
+x1, y1, x2, y2 = <span class="code-num">100.0</span>, <span class="code-num">200.0</span>, <span class="code-num">200.0</span>, <span class="code-num">500.0</span>
+bc_x, bc_y = compute_bottom_center(x1, y1, x2, y2)
+
+rows = [{
+    <span class="code-str">"schema_version"</span>: DETECTION_SCHEMA_VERSION,
+    <span class="code-str">"run_id"</span>: <span class="code-str">"match_001"</span>,
+    <span class="code-str">"chunk_id"</span>: <span class="code-num">0</span>,
+    <span class="code-str">"frame_id"</span>: <span class="code-num">0</span>,
+    <span class="code-str">"timestamp_ms"</span>: <span class="code-num">0</span>,
+    <span class="code-str">"detection_index"</span>: <span class="code-num">0</span>,
+    <span class="code-str">"x1"</span>: x1,
+    <span class="code-str">"y1"</span>: y1,
+    <span class="code-str">"x2"</span>: x2,
+    <span class="code-str">"y2"</span>: y2,
+    <span class="code-str">"bottom_center_x"</span>: bc_x,
+    <span class="code-str">"bottom_center_y"</span>: bc_y,
+    <span class="code-str">"confidence"</span>: <span class="code-num">0.95</span>,
+    <span class="code-str">"class_label"</span>: <span class="code-str">"player"</span>,
+    <span class="code-str">"source"</span>: <span class="code-str">"BASE_15FPS"</span>,
+    <span class="code-str">"tile_id"</span>: <span class="code-kw">None</span>,
+    <span class="code-str">"config_id"</span>: <span class="code-str">"cfg_hash_123"</span>,
+}]
+
+table = pa.Table.from_pylist(rows, schema=DETECTION_PYARROW_SCHEMA)
+
+<span class="code-comment"># 2. Write atomically to disk</span>
+out_path = <span class="code-str">"runs/match_001/pid01_detection/base/chunk-00000.parquet"</span>
+row_count, file_size, checksum = write_detection_partition_atomic(
+    table=table,
+    target_path=out_path,
+    source_width=<span class="code-num">3840.0</span>,
+    source_height=<span class="code-num">2160.0</span>,
+    compression=<span class="code-str">"SNAPPY"</span>,
+)
+<span class="code-fn">print</span>(f<span class="code-str">"Written {row_count} rows, {file_size} bytes, SHA-256: {checksum}"</span>)
+
+<span class="code-comment"># 3. Stream batches back with predicate filters</span>
+<span class="code-kw">for</span> batch <span class="code-kw">in</span> stream_partition_batches(out_path, min_confidence=<span class="code-num">0.5</span>, start_frame=<span class="code-num">0</span>, end_frame=<span class="code-num">100</span>):
+    <span class="code-fn">print</span>(f<span class="code-str">"Streamed batch with {batch.num_rows} detections"</span>)</code></pre>
+
+    <h3>5.2 Using the PID-2 Detection Stream Reader</h3>
+    <p>Downstream stages (PID-2 Local Tracking) consume detections without importing ML or detector libraries:</p>
+    <pre><code><span class="code-kw">from</span> football_identity.integration.detection_reader <span class="code-kw">import</span> DetectionStreamReader
+
+<span class="code-comment"># Initialize reader for a run directory</span>
+reader = DetectionStreamReader(runs_root=<span class="code-str">"runs"</span>, run_id=<span class="code-str">"match_001"</span>)
+
+<span class="code-comment"># Stream detection items across all chunks in monotonic frame order</span>
+<span class="code-kw">for</span> det <span class="code-kw">in</span> reader.stream_detections(
+    sources=[<span class="code-str">"BASE_15FPS"</span>, <span class="code-str">"AUDIT_TILE_1FPS"</span>],
+    start_frame=<span class="code-num">0</span>,
+    end_frame=<span class="code-num">1000</span>,
+    min_confidence=<span class="code-num">0.3</span>,
+):
+    <span class="code-fn">print</span>(
+        f<span class="code-str">"Frame {det.frame_id:05d} | Det #{det.detection_index} | "</span>
+        f<span class="code-str">"Box: ({det.x1:.1f}, {det.y1:.1f}, {det.x2:.1f}, {det.y2:.1f}) | "</span>
+        f<span class="code-str">"BottomCenter: ({det.bottom_center_x:.1f}, {det.bottom_center_y:.1f}) | "</span>
+        f<span class="code-str">"Conf: {det.confidence:.2f} | Chunk: {det.chunk_id}"</span>
+    )</code></pre>
+
+    <h3>5.3 Managing Run Lifecycles &amp; Resuming Interrupted Runs</h3>
+    <pre><code><span class="code-kw">from</span> football_identity.artifacts.layout <span class="code-kw">import</span> RunArtifactLayout
+<span class="code-kw">from</span> football_identity.contracts.config <span class="code-kw">import</span> load_resolved_config
+<span class="code-kw">from</span> football_identity.contracts.video <span class="code-kw">import</span> VideoFingerprint, validate_video_fingerprint
+<span class="code-kw">from</span> football_identity.runtime.state_engine <span class="code-kw">import</span> RunStateEngine
+
+layout = RunArtifactLayout(runs_root=<span class="code-str">"runs"</span>, run_id=<span class="code-str">"match_001"</span>)
+config = load_resolved_config(<span class="code-str">"runs/match_001/config.resolved.yaml"</span>)
+video_fp = validate_video_fingerprint(...)
+
+engine = RunStateEngine(layout, config, video_fp)
+
+<span class="code-comment"># Automatically plans fresh chunks or resumes uncorrupted completed chunks</span>
+all_chunks, pending_chunks = engine.initialize_or_resume(chunk_duration_sec=<span class="code-num">300.0</span>)
+
+<span class="code-kw">for</span> chunk <span class="code-kw">in</span> pending_chunks:
+    engine.mark_chunk_running(chunk.chunk_id, chunk.source)
+    <span class="code-comment"># ... Worker B performs inference & writes Parquet ...</span>
+    engine.mark_chunk_completed(
+        chunk_id=chunk.chunk_id,
+        source=chunk.source,
+        output_relative_path=f<span class="code-str">"pid01_detection/base/chunk-{chunk.chunk_id:05d}.parquet"</span>,
+        row_count=row_count,
+        checksum=checksum,
+    )
+
+<span class="code-comment"># Finalize run</span>
+status = engine.finalize_run()
+<span class="code-fn">print</span>(f<span class="code-str">"Run finalized with status: {status}"</span>)</code></pre>
+
+    <h2><span class="section-num">06</span> Verification &amp; Traceability Matrix</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Subsystem</th>
+            <th>Functional Requirement</th>
+            <th>Implementation Module</th>
+            <th>Test Specification</th>
+            <th class="text-center">Audit Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Contracts</strong></td>
+            <td>Schema Version 1, Invariants, BBoxes</td>
+            <td><a href="../../src/football_identity/contracts/detection.py"><code>detection.py</code></a></td>
+            <td><a href="../../tests/contracts/test_detection.py"><code>test_detection.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>Config</strong></td>
+            <td>Deterministic Canonical Hash</td>
+            <td><a href="../../src/football_identity/contracts/config.py"><code>config.py</code></a></td>
+            <td><a href="../../tests/contracts/test_config.py"><code>test_config.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>Video</strong></td>
+            <td>Byte SHA-256 Fingerprint</td>
+            <td><a href="../../src/football_identity/contracts/video.py"><code>video.py</code></a></td>
+            <td><a href="../../tests/contracts/test_video.py"><code>test_video.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>Storage</strong></td>
+            <td>Atomic Parquet Write &amp; Stream Read</td>
+            <td><a href="../../src/football_identity/artifacts/parquet_writer.py"><code>parquet_writer.py</code></a></td>
+            <td><a href="../../tests/artifacts/test_parquet_io.py"><code>test_parquet_io.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>Integrity</strong></td>
+            <td>Manifest Checksum Verification</td>
+            <td><a href="../../src/football_identity/artifacts/manifest.py"><code>manifest.py</code></a></td>
+            <td><a href="../../tests/artifacts/test_manifest.py"><code>test_manifest.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>Layout</strong></td>
+            <td>Exact Hierarchy Layout</td>
+            <td><a href="../../src/football_identity/artifacts/layout.py"><code>layout.py</code></a></td>
+            <td><a href="../../tests/artifacts/test_layout.py"><code>test_layout.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>Runtime</strong></td>
+            <td>Time-based Chunk Planning</td>
+            <td><a href="../../src/football_identity/runtime/chunk_planner.py"><code>chunk_planner.py</code></a></td>
+            <td><a href="../../tests/runtime/test_chunk_planner.py"><code>test_chunk_planner.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>State</strong></td>
+            <td>Resume, Retry, Corruption Detection</td>
+            <td><a href="../../src/football_identity/runtime/state_engine.py"><code>state_engine.py</code></a></td>
+            <td><a href="../../tests/runtime/test_resume_retry.py"><code>test_resume_retry.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>Invalidation</strong></td>
+            <td>Incompatible Config / Video Reset</td>
+            <td><a href="../../src/football_identity/runtime/state_engine.py"><code>state_engine.py</code></a></td>
+            <td><a href="../../tests/runtime/test_invalidation.py"><code>test_invalidation.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>Integration</strong></td>
+            <td>Neutral PID-2 Boundary Streamer</td>
+            <td><a href="../../src/football_identity/integration/detection_reader.py"><code>detection_reader.py</code></a></td>
+            <td><a href="../../tests/integration/test_detection_reader.py"><code>test_detection_reader.py</code></a></td>
+            <td class="text-center"><span class="badge-pass-cell">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="doc-footer">
+    <span>FOOTBALL IDENTITY &bull; WAVE 1 AUDIT MASTER REPORT</span>
+    <span>ENGINEERING DATA PLANE SPECIFICATION</span>
+  </footer>
+</div>
+
+</body>
+</html>
