@@ -14,5 +14,5 @@
 | **10** | Minimal invalidation on incompatible input/config/schema | **PASS** | `src/football_identity/runtime/state_engine.py`<br>`tests/runtime/test_invalidation.py` | Config or video mismatch invalidates incompatible artifacts. |
 | **11** | Lightweight structured logging | **PASS** | `src/football_identity/runtime/logger.py` | JSONL logging to `runs/<run_id>/logs/infrastructure.jsonl`. |
 | **12** | PID-2 neutral Detection reader interface & boundary fixture | **PASS** | `src/football_identity/integration/detection_reader.py`<br>`tests/integration/test_detection_reader.py` | Detector-neutral reader traverses multi-chunk boundary seamlessly without loading full match. |
-| **13** | Unit, integration, negative, corruption, and resume tests | **PASS** | `tests/contracts/`, `tests/runtime/`, `tests/artifacts/`, `tests/integration/` | 35 mandatory tests pass with zero failures and zero skips. |
+| **13** | Unit, integration, negative, corruption, and resume tests | **PASS** | `tests/contracts/`, `tests/runtime/`, `tests/artifacts/`, `tests/integration/` | 44 mandatory and regression tests pass with zero failures and zero skips. |
 | **14** | Complete delivery evidence package | **PASS** | `evidence/worker_a/` | All 14 evidence artifacts generated and verified. |

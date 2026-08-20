@@ -17,6 +17,19 @@ CHUNK_STATES = {
     "INVALIDATED",
 }
 
+VALID_CHUNK_TRANSITIONS = {
+    "NOT_STARTED": {"RUNNING", "INVALIDATED"},
+    "RUNNING": {"COMPLETED", "FAILED", "INVALIDATED"},
+    "COMPLETED": {"INVALIDATED"},
+    "FAILED": {"NOT_STARTED", "RUNNING", "INVALIDATED"},
+    "INVALIDATED": set(),
+}
+
+
+class InvalidStateTransitionError(ValueError):
+    """Raised when an illegal chunk state transition is attempted."""
+    pass
+
 
 @dataclass
 class ChunkRecord:
@@ -36,6 +49,18 @@ class ChunkRecord:
     completed_at: Optional[str] = None
     failed_at: Optional[str] = None
     error_message: Optional[str] = None
+
+    def transition_to(self, new_state: str, allow_force: bool = False) -> None:
+        """Enforces legal state machine transitions."""
+        if new_state not in CHUNK_STATES:
+            raise ValueError(f"Unknown target state: '{new_state}'")
+        if not allow_force and new_state != self.state:
+            allowed = VALID_CHUNK_TRANSITIONS.get(self.state, set())
+            if new_state not in allowed:
+                raise InvalidStateTransitionError(
+                    f"Illegal chunk state transition from '{self.state}' to '{new_state}' for chunk {self.chunk_id} ({self.source})"
+                )
+        self.state = new_state
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -75,6 +75,43 @@ class DetectionManifest:
         return json.dumps(self.to_dict(), indent=2)
 
 
+RUN_MANIFEST_SCHEMA_NAME = "football_identity.run_manifest"
+RUN_MANIFEST_SCHEMA_VERSION = 1
+
+
+@dataclass
+class RunManifest:
+    run_id: str
+    video_sha256: str
+    config_id: str
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    completed_at: Optional[str] = None
+    state: str = "IN_PROGRESS"
+    schema_name: str = RUN_MANIFEST_SCHEMA_NAME
+    schema_version: int = RUN_MANIFEST_SCHEMA_VERSION
+    detection_manifest_path: str = "pid01_detection/detection_manifest.json"
+    video_fingerprint_path: str = "video_fingerprint.json"
+    resolved_config_path: str = "config.resolved.yaml"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def fsync_dir(dir_path: Path) -> None:
+    """Safely attempts to fsync directory descriptor if supported."""
+    try:
+        if hasattr(os, "O_DIRECTORY"):
+            dir_fd = os.open(str(dir_path), os.O_RDONLY | os.O_DIRECTORY)
+        else:
+            dir_fd = os.open(str(dir_path), os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except (OSError, AttributeError):
+        pass
+
+
 def compute_file_sha256(file_path: Union[str, Path], chunk_size: int = 65536) -> tuple[str, int]:
     """Computes sha256 checksum and byte size of a file."""
     p = Path(file_path)
@@ -104,12 +141,65 @@ def atomic_write_json(destination: Union[str, Path], data: Mapping[str, Any]) ->
             f.flush()
             os.fsync(f.fileno())
         os.replace(temp_path, dest)
+        fsync_dir(dest.parent)
     finally:
         if temp_path.exists():
             try:
                 temp_path.unlink()
             except OSError:
                 pass
+
+
+def atomic_write_yaml(destination: Union[str, Path], data: Mapping[str, Any]) -> None:
+    """Writes YAML atomically: writes to temporary file, flushes, fsyncs, and renames."""
+    dest = Path(destination)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = dest.parent / f"{dest.name}.tmp.{uuid.uuid4().hex}"
+
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(dict(data), f, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, dest)
+        fsync_dir(dest.parent)
+    finally:
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+
+
+def save_run_manifest(manifest: RunManifest, destination: Union[str, Path]) -> None:
+    """Saves root run manifest atomically."""
+    if manifest.state not in ALLOWED_FINAL_STATES:
+        raise ValueError(f"Invalid manifest state '{manifest.state}'. Allowed: {ALLOWED_FINAL_STATES}")
+    atomic_write_json(destination, manifest.to_dict())
+
+
+def load_run_manifest(manifest_path: Union[str, Path]) -> RunManifest:
+    """Loads and validates a root run manifest."""
+    p = Path(manifest_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Run manifest not found: {p}")
+
+    with open(p, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    return RunManifest(
+        run_id=data["run_id"],
+        video_sha256=data["video_sha256"],
+        config_id=data["config_id"],
+        created_at=data.get("created_at", ""),
+        completed_at=data.get("completed_at"),
+        state=data.get("state", "IN_PROGRESS"),
+        schema_name=data.get("schema_name", RUN_MANIFEST_SCHEMA_NAME),
+        schema_version=data.get("schema_version", RUN_MANIFEST_SCHEMA_VERSION),
+        detection_manifest_path=data.get("detection_manifest_path", "pid01_detection/detection_manifest.json"),
+        video_fingerprint_path=data.get("video_fingerprint_path", "video_fingerprint.json"),
+        resolved_config_path=data.get("resolved_config_path", "config.resolved.yaml"),
+    )
 
 
 def save_detection_manifest(manifest: DetectionManifest, destination: Union[str, Path]) -> None:

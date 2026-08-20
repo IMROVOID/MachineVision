@@ -14,15 +14,19 @@ CANONICAL_SCHEMA_VERSION = 1
 IMPLEMENTATION_VERSION = "0.1.0"
 
 
+import math
+
+
 def _canonicalize_value(val: Any) -> Any:
     """Recursively normalizes Python objects for deterministic JSON serialization."""
     if isinstance(val, Mapping):
-        return {k: _canonicalize_value(v) for k, v in sorted(val.items())}
+        return {str(k): _canonicalize_value(v) for k, v in sorted(val.items())}
     if isinstance(val, (list, tuple)):
         return [_canonicalize_value(item) for item in val]
     if isinstance(val, float):
-        # Round floats to 6 decimal places to prevent platform precision drift
-        return round(val, 6)
+        if math.isnan(val) or math.isinf(val):
+            raise ValueError(f"Cannot canonicalize non-finite float: {val}")
+        return val
     return val
 
 
@@ -60,7 +64,7 @@ def compute_canonical_config_hash(config_data: Union[Mapping[str, Any], Canonica
     if isinstance(config_data, CanonicalConfig):
         return config_data.compute_hash()
 
-    # Extract required fields or normalize dict
+    # Verify baseline required fields
     required_keys = [
         "model_identifier",
         "model_weight_digest",
@@ -72,16 +76,18 @@ def compute_canonical_config_hash(config_data: Union[Mapping[str, Any], Canonica
         "preprocessing_policy",
         "tile_policy",
     ]
-    extracted = {}
     for key in required_keys:
         if key not in config_data:
             raise KeyError(f"Missing required canonical configuration key: '{key}'")
-        extracted[key] = config_data[key]
 
-    extracted["schema_version"] = config_data.get("schema_version", CANONICAL_SCHEMA_VERSION)
-    extracted["implementation_version"] = config_data.get("implementation_version", IMPLEMENTATION_VERSION)
+    # Deep copy and canonicalize every behavior-affecting field present
+    config_dict = dict(config_data)
+    if "schema_version" not in config_dict:
+        config_dict["schema_version"] = CANONICAL_SCHEMA_VERSION
+    if "implementation_version" not in config_dict:
+        config_dict["implementation_version"] = IMPLEMENTATION_VERSION
 
-    canonical_obj = _canonicalize_value(extracted)
+    canonical_obj = _canonicalize_value(config_dict)
     canonical_json = json.dumps(
         canonical_obj,
         sort_keys=True,

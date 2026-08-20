@@ -29,6 +29,7 @@ tests/runtime/test_chunk_planner.py
 tests/runtime/test_state_engine.py
 tests/runtime/test_resume_retry.py
 tests/runtime/test_invalidation.py
+tests/runtime/test_regression_repairs.py
 tests/integration/__init__.py
 tests/integration/test_detection_reader.py
 pyproject.toml

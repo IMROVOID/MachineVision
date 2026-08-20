@@ -93,8 +93,13 @@ def validate_detection_row(
     width: float,
     height: float,
     tolerance: float = 1e-3,
+    expected_run_id: Optional[str] = None,
+    expected_source: Optional[str] = None,
+    expected_config_id: Optional[str] = None,
+    expected_chunk_id: Optional[int] = None,
+    frame_bounds: Optional[tuple[int, int]] = None,
 ) -> None:
-    """Validates single row against Detection invariants."""
+    """Validates single row against Detection invariants and optional expected context."""
     data = row.to_dict() if isinstance(row, DetectionRow) else dict(row)
 
     if data.get("schema_version") != DETECTION_SCHEMA_VERSION:
@@ -102,15 +107,36 @@ def validate_detection_row(
             f"Invalid schema_version: expected {DETECTION_SCHEMA_VERSION}, got {data.get('schema_version')}"
         )
 
+    run_id = data.get("run_id")
+    if expected_run_id is not None and run_id != expected_run_id:
+        raise ValidationError(f"Mismatched run_id: expected '{expected_run_id}', got '{run_id}'")
+
     source = data.get("source")
     if source not in ALLOWED_SOURCES:
         raise ValidationError(
             f"Invalid source: '{source}'. Allowed sources: {sorted(ALLOWED_SOURCES)}"
         )
+    if expected_source is not None and source != expected_source:
+        raise ValidationError(f"Mismatched source: expected '{expected_source}', got '{source}'")
+
+    config_id = data.get("config_id")
+    if expected_config_id is not None and config_id != expected_config_id:
+        raise ValidationError(f"Mismatched config_id: expected '{expected_config_id}', got '{config_id}'")
+
+    chunk_id = data.get("chunk_id")
+    if expected_chunk_id is not None and chunk_id != expected_chunk_id:
+        raise ValidationError(f"Mismatched chunk_id: expected {expected_chunk_id}, got {chunk_id}")
 
     frame_id = data.get("frame_id")
     if not isinstance(frame_id, int) or frame_id < 0:
         raise ValidationError(f"Invalid frame_id: {frame_id} (must be non-negative integer)")
+
+    if frame_bounds is not None:
+        start_f, end_f = frame_bounds
+        if not (start_f <= frame_id < end_f):
+            raise ValidationError(
+                f"frame_id {frame_id} out of expected chunk frame bounds [{start_f}, {end_f})"
+            )
 
     timestamp_ms = data.get("timestamp_ms")
     if not isinstance(timestamp_ms, int) or timestamp_ms < 0:
@@ -164,8 +190,13 @@ def validate_detection_table(
     width: float,
     height: float,
     tolerance: float = 1e-3,
+    expected_run_id: Optional[str] = None,
+    expected_source: Optional[str] = None,
+    expected_config_id: Optional[str] = None,
+    expected_chunk_id: Optional[int] = None,
+    frame_bounds: Optional[tuple[int, int]] = None,
 ) -> None:
-    """Vectorized validation for a PyArrow Table of detections."""
+    """Vectorized validation for a PyArrow Table of detections against schema and expected context."""
     if table is None or not isinstance(table, pa.Table):
         raise ValidationError("Expected a pyarrow.Table instance")
 
@@ -192,16 +223,44 @@ def validate_detection_table(
     if not pc.all(pc.equal(sv_col, DETECTION_SCHEMA_VERSION)).as_py():
         raise ValidationError(f"All rows must have schema_version == {DETECTION_SCHEMA_VERSION}")
 
-    # 3. Source check
+    # 3. Identity and context checks
+    if expected_run_id is not None:
+        run_ids = table.column("run_id")
+        if not pc.all(pc.equal(run_ids, expected_run_id)).as_py():
+            raise ValidationError(f"Table contains rows with mismatched run_id (expected '{expected_run_id}')")
+
+    if expected_config_id is not None:
+        cfg_ids = table.column("config_id")
+        if not pc.all(pc.equal(cfg_ids, expected_config_id)).as_py():
+            raise ValidationError(f"Table contains rows with mismatched config_id (expected '{expected_config_id}')")
+
+    if expected_chunk_id is not None:
+        chk_ids = table.column("chunk_id")
+        if not pc.all(pc.equal(chk_ids, expected_chunk_id)).as_py():
+            raise ValidationError(f"Table contains rows with mismatched chunk_id (expected {expected_chunk_id})")
+
+    # 4. Source check
     sources = set(table.column("source").to_pylist())
     invalid_sources = sources - ALLOWED_SOURCES
     if invalid_sources:
         raise ValidationError(f"Invalid sources found: {invalid_sources}. Allowed: {ALLOWED_SOURCES}")
 
-    # 4. Frame & Timestamp & Detection index non-negative
+    if expected_source is not None:
+        src_col = table.column("source")
+        if not pc.all(pc.equal(src_col, expected_source)).as_py():
+            raise ValidationError(f"Table contains rows with mismatched source (expected '{expected_source}')")
+
+    # 5. Frame & Timestamp & Detection index non-negative
     frame_ids = table.column("frame_id")
     if pc.any(pc.less(frame_ids, 0)).as_py():
         raise ValidationError("Negative frame_id detected")
+
+    if frame_bounds is not None:
+        start_f, end_f = frame_bounds
+        if pc.any(pc.less(frame_ids, start_f)).as_py() or pc.any(pc.greater_equal(frame_ids, end_f)).as_py():
+            raise ValidationError(
+                f"Table contains frame_id outside chunk frame bounds [{start_f}, {end_f})"
+            )
 
     timestamps = table.column("timestamp_ms")
     if pc.any(pc.less(timestamps, 0)).as_py():
@@ -211,7 +270,7 @@ def validate_detection_table(
     if pc.any(pc.less(det_indices, 0)).as_py():
         raise ValidationError("Negative detection_index detected")
 
-    # 5. Check finite coordinates & confidence
+    # 6. Check finite coordinates & confidence
     x1 = table.column("x1")
     y1 = table.column("y1")
     x2 = table.column("x2")
@@ -225,7 +284,7 @@ def validate_detection_table(
         if not pc.all(pc.is_finite(col)).as_py():
             raise ValidationError(f"Column '{name}' contains non-finite (NaN or Inf) values")
 
-    # 6. Coordinate boundaries
+    # 7. Coordinate boundaries
     if pc.any(pc.less(x1, 0.0)).as_py():
         raise ValidationError(f"x1 contains negative coordinates")
     if pc.any(pc.greater(x2, float(width))).as_py():
@@ -240,11 +299,11 @@ def validate_detection_table(
     if pc.any(pc.greater_equal(y1, y2)).as_py():
         raise ValidationError("Bounding box invariant y1 < y2 violated")
 
-    # 7. Confidence in [0, 1]
+    # 8. Confidence in [0, 1]
     if pc.any(pc.less(conf, 0.0)).as_py() or pc.any(pc.greater(conf, 1.0)).as_py():
         raise ValidationError("Confidence contains values outside [0.0, 1.0]")
 
-    # 8. Bottom center derivation
+    # 9. Bottom center derivation
     expected_bc_x = pc.divide(pc.add(x1, x2), 2.0)
     diff_x = pc.abs(pc.subtract(bc_x, expected_bc_x))
     if pc.any(pc.greater(diff_x, tolerance)).as_py():
@@ -254,22 +313,22 @@ def validate_detection_table(
     if pc.any(pc.greater(diff_y, tolerance)).as_py():
         raise ValidationError(f"bottom_center_y does not match y2 within tolerance {tolerance}")
 
-    # 9. Key uniqueness: (run_id, source, frame_id, tile_id, detection_index)
-    run_ids = table.column("run_id").to_pylist()
-    src_list = table.column("source").to_pylist()
-    f_list = table.column("frame_id").to_pylist()
-    t_list = table.column("tile_id").to_pylist()
-    idx_list = table.column("detection_index").to_pylist()
-
+    # 10. Key uniqueness: (run_id, source, frame_id, tile_id, detection_index)
     seen_keys = set()
-    for r, s, f, t, idx in zip(run_ids, src_list, f_list, t_list, idx_list):
+    for r, s, f, t, idx in zip(
+        table.column("run_id").to_pylist(),
+        table.column("source").to_pylist(),
+        frame_ids.to_pylist(),
+        table.column("tile_id").to_pylist(),
+        det_indices.to_pylist(),
+    ):
         k = (r, s, f, t, idx)
         if k in seen_keys:
             raise ValidationError(f"Duplicate detection key found: {k}")
         seen_keys.add(k)
 
-    # 10. Monotonic ordering check by frame_id and timestamp_ms
-    # Across consecutive rows, frame_id must be non-decreasing, and timestamp_ms non-decreasing
+    # 11. Monotonic ordering check by frame_id and timestamp_ms
+    f_list = frame_ids.to_pylist()
     for i in range(1, len(f_list)):
         if f_list[i] < f_list[i - 1]:
             raise ValidationError(
@@ -279,3 +338,18 @@ def validate_detection_table(
             raise ValidationError(
                 f"Non-monotonic timestamp_ms ordering at row {i}: {timestamps[i-1].as_py()} -> {timestamps[i].as_py()}"
             )
+
+
+def extract_detection_keys(table: pa.Table) -> list[tuple[str, str, int, Optional[str], int]]:
+    """Extracts unique detection key tuples (run_id, source, frame_id, tile_id, detection_index) from table."""
+    if table.num_rows == 0:
+        return []
+    return list(
+        zip(
+            table.column("run_id").to_pylist(),
+            table.column("source").to_pylist(),
+            table.column("frame_id").to_pylist(),
+            table.column("tile_id").to_pylist(),
+            table.column("detection_index").to_pylist(),
+        )
+    )

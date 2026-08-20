@@ -2,7 +2,7 @@
 
 > **Module:** Detection Infrastructure and Integration Foundation  
 > **Assigned Role:** Worker A — Infrastructure and Data Plane  
-> **Status:** 100% PASS (35 of 35 tests passing, 0 skips, 0 failures)  
+> **Status:** 100% PASS (44 of 44 tests passing, 0 skips, 0 failures)  
 > **Target Hardware:** RTX 4050 Laptop GPU, Core i7-13700, 16 GB RAM  
 > **Target Input:** One full-match 4K (3840×2160), 30 FPS football video (~180,000 frames)
 
@@ -80,6 +80,7 @@ MachineVision/
 │   ├── runtime/
 │   │   ├── test_chunk_planner.py     # Chunk boundary and remainder calculations
 │   │   ├── test_invalidation.py      # Video and config change invalidation tests
+│   │   ├── test_regression_repairs.py # Audit repairs & edge cases (9 tests)
 │   │   ├── test_resume_retry.py      # Chunk reuse, retry, and corruption recovery
 │   │   └── test_state_engine.py      # Complete run execution lifecycle tests
 │   ├── artifacts/
@@ -111,7 +112,7 @@ MachineVision/
 
 ---
 
-## 3. Complete Test Catalog (All 35 Tests Explained)
+## 3. Complete Test Catalog (All 44 Tests Explained)
 
 ### 3.1 `tests/contracts/` — Contracts & Schema Invariants (13 Tests)
 
@@ -168,6 +169,20 @@ MachineVision/
 | `test_source_and_confidence_filtering` | [`../../tests/integration/test_detection_reader.py`](../../tests/integration/test_detection_reader.py) | Verifies multi-source partition filtering (`AUDIT_TILE_1FPS` vs `BASE_15FPS`) and confidence filtering. | **PASS** |
 | `test_detector_independence` | [`../../tests/integration/test_detection_reader.py`](../../tests/integration/test_detection_reader.py) | Proves `DetectionStreamReader` does NOT import `torch`, `torchvision`, `ultralytics`, `cv2`, `cuda`, or `tensorrt`. | **PASS** |
 
+### 3.5 `tests/runtime/test_regression_repairs.py` — Audit Repairs & Invariants (9 Tests)
+
+| Test Name | File | Description & Verification Goal | Result |
+|---|---|---|:---:|
+| `test_multi_source_global_ordering` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Verifies `DetectionStreamReader` returns globally monotonic frame ordering across multiple observation sources. | **PASS** |
+| `test_reader_expected_identity_rejection` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Ensures consumer reader validates expected run ID, video digest, and config identity before streaming. | **PASS** |
+| `test_invalid_chunk_state_transitions` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Rejects illegal state machine jumps (e.g. `NOT_STARTED -> COMPLETED` or `INVALIDATED -> RUNNING`). | **PASS** |
+| `test_pre_commit_row_and_boundary_rejection` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Proves atomic writer rejects rows outside chunk bounds `[start_frame, end_frame)` or with mismatched context. | **PASS** |
+| `test_resume_incompatibility_invalidates_manifest_and_chunks` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Verifies resolution or config changes mark both manifests and chunks as `INVALIDATED` on disk. | **PASS** |
+| `test_config_hash_covers_all_fields_without_float_rounding` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Proves canonical hash is sensitive to every field without lossy float precision rounding. | **PASS** |
+| `test_root_artifacts_created_and_finalized` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Validates automated generation of `run_manifest.json`, `config.resolved.yaml`, and `video_fingerprint.json`. | **PASS** |
+| `test_run_wide_duplicate_detection_rejection` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Detects and rejects duplicate detection keys across chunks throughout the entire run. | **PASS** |
+| `test_multi_source_chunk_planning` | [`../../tests/runtime/test_regression_repairs.py`](../../tests/runtime/test_regression_repairs.py) | Verifies multi-source chunk planning independently for base, audit, and repair observation sources. | **PASS** |
+
 ---
 
 ## 4. Test Execution Guide
@@ -195,8 +210,8 @@ python -m pytest tests/contracts tests/runtime tests/artifacts tests/integration
 ```
 *Expected Output:*
 ```text
-...................................                                      [100%]
-35 passed in 0.86s
+............................................                             [100%]
+44 passed in 1.18s
 ```
 
 #### 2. Run Verbose Output with All Test Names

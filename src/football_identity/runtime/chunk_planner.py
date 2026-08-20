@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from typing import List
 
+from football_identity.contracts.detection import ALLOWED_SOURCES
 from football_identity.runtime.chunk_state import ChunkRecord
 
 
@@ -31,6 +32,8 @@ def plan_chunks(
     Returns:
         List of planned ChunkRecord instances in 'NOT_STARTED' state.
     """
+    if source not in ALLOWED_SOURCES:
+        raise ValueError(f"Invalid source '{source}'. Allowed sources: {sorted(ALLOWED_SOURCES)}")
     if total_frames <= 0:
         raise ValueError(f"total_frames must be positive, got {total_frames}")
     if chunk_duration_sec <= 0:
@@ -75,3 +78,27 @@ def plan_chunks(
         )
 
     return chunks
+
+
+def plan_multi_source_chunks(
+    total_frames: int,
+    duration_ms: int,
+    fps_num: int,
+    fps_den: int,
+    source_chunk_durations: dict[str, float],
+    config_id: str = "",
+) -> list[ChunkRecord]:
+    """Generates independent chunk plans for multiple observation sources."""
+    all_chunks: list[ChunkRecord] = []
+    for src, dur in source_chunk_durations.items():
+        src_chunks = plan_chunks(
+            total_frames=total_frames,
+            duration_ms=duration_ms,
+            fps_num=fps_num,
+            fps_den=fps_den,
+            chunk_duration_sec=dur,
+            source=src,
+            config_id=config_id,
+        )
+        all_chunks.extend(src_chunks)
+    return all_chunks

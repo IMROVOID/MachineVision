@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 
 import pyarrow.parquet as pq
 
@@ -13,12 +13,22 @@ from football_identity.artifacts.layout import RunArtifactLayout
 from football_identity.artifacts.manifest import (
     DetectionManifest,
     PartitionInventoryItem,
+    RunManifest,
+    atomic_write_json,
+    atomic_write_yaml,
     compute_file_sha256,
     load_detection_manifest,
+    load_run_manifest,
     save_detection_manifest,
+    save_run_manifest,
     verify_manifest_integrity,
 )
 from football_identity.contracts.config import compute_canonical_config_hash
+from football_identity.contracts.detection import (
+    ALLOWED_SOURCES,
+    ValidationError,
+    extract_detection_keys,
+)
 from football_identity.contracts.video import VideoFingerprint
 from football_identity.runtime.chunk_planner import plan_chunks
 from football_identity.runtime.chunk_state import (
@@ -45,53 +55,86 @@ class RunStateEngine:
         self.logger = logger or InfrastructureLogger(self.layout.infrastructure_log_path)
 
         self.manifest: Optional[DetectionManifest] = None
+        self.run_manifest: Optional[RunManifest] = None
         self.chunks: list[ChunkRecord] = []
+        self._seen_detection_keys: set[tuple[str, str, int, Optional[str], int]] = set()
+
+    def _ensure_root_artifacts(self, state: str = "IN_PROGRESS") -> None:
+        """Atomically creates or updates root artifacts: run_manifest, config.resolved.yaml, video_fingerprint.json."""
+        # 1. video_fingerprint.json
+        if not self.layout.video_fingerprint_path.exists():
+            atomic_write_json(self.layout.video_fingerprint_path, self.video_fingerprint.to_dict())
+
+        # 2. config.resolved.yaml
+        if not self.layout.resolved_config_path.exists():
+            atomic_write_yaml(self.layout.resolved_config_path, self.resolved_config)
+
+        # 3. run_manifest.json
+        self.run_manifest = RunManifest(
+            run_id=self.layout.run_id,
+            video_sha256=self.video_fingerprint.sha256,
+            config_id=self.config_id,
+            state=state,
+        )
+        save_run_manifest(self.run_manifest, self.layout.run_manifest_path)
 
     def initialize_or_resume(
         self,
-        chunk_duration_sec: float,
-        source: str = "BASE_15FPS",
+        chunk_duration_sec: Union[float, dict[str, float]] = 300.0,
+        source: Union[str, Sequence[str]] = "BASE_15FPS",
     ) -> tuple[list[ChunkRecord], list[ChunkRecord]]:
-        """Initializes run plan or resumes from existing manifests with corruption and identity checks.
+        """Initializes run plan or resumes from existing manifests with comprehensive identity and boundary checks.
 
         Returns:
             tuple[list[ChunkRecord], list[ChunkRecord]]: (all_chunks, pending_executable_chunks)
         """
         manifest_path = self.layout.detection_manifest_path
         chunks_path = self.layout.chunks_path
+        fps_policies = self.resolved_config.get("fps_policies", {"base_fps": 15, "audit_fps": 1, "repair_fps": 30})
 
         # Case 1: Existing run artifacts found -> Attempt resume
         if manifest_path.exists() and chunks_path.exists():
             self.manifest = load_detection_manifest(manifest_path)
             existing_chunks = load_chunks_manifest(chunks_path)
+            self.chunks = existing_chunks
 
-            # Check 1: Video Identity Mismatch
+            # Check 1: Video SHA-256 Identity Mismatch
             if self.manifest.video_sha256.lower() != self.video_fingerprint.sha256.lower():
-                self.logger.log(
-                    "VIDEO_MISMATCH_INVALIDATION",
-                    level="ERROR",
-                    run_id=self.layout.run_id,
-                    expected=self.manifest.video_sha256,
-                    actual=self.video_fingerprint.sha256,
-                )
-                self.invalidate_run("Source video SHA-256 mismatch against existing manifest")
+                msg = f"Source video SHA-256 mismatch against existing manifest: expected {self.manifest.video_sha256}, got {self.video_fingerprint.sha256}"
+                self.logger.log("VIDEO_MISMATCH_INVALIDATION", level="ERROR", run_id=self.layout.run_id, reason=msg)
+                self.invalidate_run(msg)
                 return self.chunks, []
 
-            # Check 2: Canonical Config Identity Mismatch
+            # Check 2: Video Resolution Mismatch
+            if self.manifest.source_resolution != [self.video_fingerprint.width, self.video_fingerprint.height]:
+                msg = f"Source resolution mismatch: expected {self.manifest.source_resolution}, got [{self.video_fingerprint.width}, {self.video_fingerprint.height}]"
+                self.logger.log("RESOLUTION_MISMATCH_INVALIDATION", level="ERROR", run_id=self.layout.run_id, reason=msg)
+                self.invalidate_run(msg)
+                return self.chunks, []
+
+            # Check 3: Canonical Config Identity Mismatch
             if self.manifest.config_id != self.config_id:
-                self.logger.log(
-                    "CONFIG_MISMATCH_INVALIDATION",
-                    level="ERROR",
-                    run_id=self.layout.run_id,
-                    expected=self.manifest.config_id,
-                    actual=self.config_id,
-                )
-                self.invalidate_run("Configuration canonical hash mismatch against existing manifest")
+                msg = f"Configuration canonical hash mismatch against existing manifest: expected {self.manifest.config_id}, got {self.config_id}"
+                self.logger.log("CONFIG_MISMATCH_INVALIDATION", level="ERROR", run_id=self.layout.run_id, reason=msg)
+                self.invalidate_run(msg)
                 return self.chunks, []
 
-            # Process chunk resume states
+            # Check 4: FPS Policy Inconsistency
+            expected_base_fps = int(fps_policies.get("base_fps", 15))
+            expected_audit_fps = int(fps_policies.get("audit_fps", 1))
+            if self.manifest.base_fps != expected_base_fps or self.manifest.audit_fps != expected_audit_fps:
+                msg = f"FPS policy mismatch: manifest ({self.manifest.base_fps}/{self.manifest.audit_fps}) vs config ({expected_base_fps}/{expected_audit_fps})"
+                self.logger.log("FPS_MISMATCH_INVALIDATION", level="ERROR", run_id=self.layout.run_id, reason=msg)
+                self.invalidate_run(msg)
+                return self.chunks, []
+
+            # Check 5: Verify root artifacts exist
+            self._ensure_root_artifacts(state="IN_PROGRESS")
+
+            # Process chunk resume states & load existing keys for uniqueness tracking
             pending_chunks: list[ChunkRecord] = []
             verified_chunks: list[ChunkRecord] = []
+            self._seen_detection_keys.clear()
 
             for chunk in existing_chunks:
                 if chunk.state == "COMPLETED" and chunk.output_path:
@@ -104,11 +147,19 @@ class RunStateEngine:
                                 chunk.checksum_sha256
                                 and calc_sha.lower() == chunk.checksum_sha256.lower()
                             ):
-                                # Valid completed chunk -> REUSE
+                                # Read table and register keys to check run-wide uniqueness
+                                table = pq.read_table(parquet_full_path)
+                                keys = extract_detection_keys(table)
+                                for k in keys:
+                                    if k in self._seen_detection_keys:
+                                        raise ValidationError(f"Duplicate detection key found across partitions: {k}")
+                                    self._seen_detection_keys.add(k)
+
                                 self.logger.log(
                                     "CHUNK_REUSED",
                                     run_id=self.layout.run_id,
                                     chunk_id=chunk.chunk_id,
+                                    source=chunk.source,
                                     checksum=calc_sha,
                                 )
                                 verified_chunks.append(chunk)
@@ -119,6 +170,7 @@ class RunStateEngine:
                                     level="WARNING",
                                     run_id=self.layout.run_id,
                                     chunk_id=chunk.chunk_id,
+                                    source=chunk.source,
                                 )
                         except Exception as e:
                             self.logger.log(
@@ -126,15 +178,16 @@ class RunStateEngine:
                                 level="WARNING",
                                 run_id=self.layout.run_id,
                                 chunk_id=chunk.chunk_id,
+                                source=chunk.source,
                                 error=str(e),
                             )
 
                     # If file missing or corrupted -> Mark for retry
-                    chunk.state = "FAILED"
+                    chunk.transition_to("FAILED", allow_force=True)
                     chunk.error_message = "Partition file missing or corrupted on disk"
 
                 # If chunk was RUNNING, NOT_STARTED, or FAILED -> Schedule for retry
-                chunk.state = "NOT_STARTED"
+                chunk.transition_to("NOT_STARTED", allow_force=True)
                 chunk.attempt_count += 1
                 chunk.error_message = None
                 verified_chunks.append(chunk)
@@ -145,17 +198,28 @@ class RunStateEngine:
             return self.chunks, pending_chunks
 
         # Case 2: Fresh run
-        self.chunks = plan_chunks(
-            total_frames=self.video_fingerprint.frame_count_reported,
-            duration_ms=self.video_fingerprint.duration_ms,
-            fps_num=self.video_fingerprint.nominal_fps_num,
-            fps_den=self.video_fingerprint.nominal_fps_den,
-            chunk_duration_sec=chunk_duration_sec,
-            source=source,
-            config_id=self.config_id,
-        )
+        target_sources: list[str] = [source] if isinstance(source, str) else list(source)
+        self.chunks = []
 
-        fps_policies = self.resolved_config.get("fps_policies", {"base_fps": 15, "audit_fps": 1, "repair_fps": 30})
+        for src in target_sources:
+            if src not in ALLOWED_SOURCES:
+                raise ValueError(f"Invalid source '{src}'. Allowed: {sorted(ALLOWED_SOURCES)}")
+            dur = (
+                chunk_duration_sec[src]
+                if isinstance(chunk_duration_sec, dict)
+                else float(chunk_duration_sec)
+            )
+            src_chunks = plan_chunks(
+                total_frames=self.video_fingerprint.frame_count_reported,
+                duration_ms=self.video_fingerprint.duration_ms,
+                fps_num=self.video_fingerprint.nominal_fps_num,
+                fps_den=self.video_fingerprint.nominal_fps_den,
+                chunk_duration_sec=dur,
+                source=src,
+                config_id=self.config_id,
+            )
+            self.chunks.extend(src_chunks)
+
         self.manifest = DetectionManifest(
             run_id=self.layout.run_id,
             video_sha256=self.video_fingerprint.sha256,
@@ -172,18 +236,44 @@ class RunStateEngine:
             state="IN_PROGRESS",
         )
 
+        # Write root artifacts and manifests
+        self._ensure_root_artifacts(state="IN_PROGRESS")
         save_chunks_manifest(self.chunks, chunks_path)
         save_detection_manifest(self.manifest, manifest_path)
         self.logger.log("RUN_INITIALIZED", run_id=self.layout.run_id, total_chunks=len(self.chunks))
         return self.chunks, list(self.chunks)
 
+    def plan_source(
+        self,
+        source: str,
+        chunk_duration_sec: float = 300.0,
+    ) -> list[ChunkRecord]:
+        """Dynamically plans chunks for an additional observation source (e.g. AUDIT or REPAIR)."""
+        if source not in ALLOWED_SOURCES:
+            raise ValueError(f"Invalid source '{source}'. Allowed: {sorted(ALLOWED_SOURCES)}")
+
+        new_chunks = plan_chunks(
+            total_frames=self.video_fingerprint.frame_count_reported,
+            duration_ms=self.video_fingerprint.duration_ms,
+            fps_num=self.video_fingerprint.nominal_fps_num,
+            fps_den=self.video_fingerprint.nominal_fps_den,
+            chunk_duration_sec=chunk_duration_sec,
+            source=source,
+            config_id=self.config_id,
+        )
+        # Remove any existing not started chunks for this source and replace
+        self.chunks = [c for c in self.chunks if not (c.source == source and c.state == "NOT_STARTED")]
+        self.chunks.extend(new_chunks)
+        save_chunks_manifest(self.chunks, self.layout.chunks_path)
+        return new_chunks
+
     def mark_chunk_running(self, chunk_id: int, source: str) -> ChunkRecord:
-        """Transitions chunk to RUNNING state."""
+        """Transitions chunk to RUNNING state with strict state machine validation."""
         chunk = next((c for c in self.chunks if c.chunk_id == chunk_id and c.source == source), None)
         if not chunk:
             raise KeyError(f"Chunk not found: id={chunk_id}, source={source}")
 
-        chunk.state = "RUNNING"
+        chunk.transition_to("RUNNING")
         chunk.started_at = datetime.now(timezone.utc).isoformat()
         chunk.error_message = None
         save_chunks_manifest(self.chunks, self.layout.chunks_path)
@@ -198,12 +288,24 @@ class RunStateEngine:
         row_count: int,
         checksum: str,
     ) -> ChunkRecord:
-        """Transitions chunk to COMPLETED state and updates manifest inventory."""
+        """Transitions chunk to COMPLETED state, verifies run-wide duplicate keys, and updates manifest."""
         chunk = next((c for c in self.chunks if c.chunk_id == chunk_id and c.source == source), None)
         if not chunk:
             raise KeyError(f"Chunk not found: id={chunk_id}, source={source}")
 
-        chunk.state = "COMPLETED"
+        # Check partition file exists and check for run-wide duplicate detection keys
+        full_path = self.layout.run_dir / output_relative_path
+        if not full_path.exists():
+            raise FileNotFoundError(f"Partition file does not exist: {full_path}")
+
+        table = pq.read_table(full_path)
+        keys = extract_detection_keys(table)
+        for k in keys:
+            if k in self._seen_detection_keys:
+                raise ValidationError(f"Run-wide duplicate detection key detected across chunks: {k}")
+            self._seen_detection_keys.add(k)
+
+        chunk.transition_to("COMPLETED")
         chunk.output_path = output_relative_path
         chunk.row_count = row_count
         chunk.checksum_sha256 = checksum
@@ -212,13 +314,11 @@ class RunStateEngine:
 
         # Update partition in manifest
         if self.manifest:
-            # Remove any existing entry for this partition
             self.manifest.partitions = [
                 p for p in self.manifest.partitions
                 if not (p.source == source and p.chunk_id == chunk_id)
             ]
-            full_path = self.layout.run_dir / output_relative_path
-            file_size = full_path.stat().st_size if full_path.exists() else 0
+            file_size = full_path.stat().st_size
             self.manifest.partitions.append(
                 PartitionInventoryItem(
                     source=source,
@@ -248,7 +348,7 @@ class RunStateEngine:
         if not chunk:
             raise KeyError(f"Chunk not found: id={chunk_id}, source={source}")
 
-        chunk.state = "FAILED"
+        chunk.transition_to("FAILED")
         chunk.failed_at = datetime.now(timezone.utc).isoformat()
         chunk.error_message = str(error_message)
         save_chunks_manifest(self.chunks, self.layout.chunks_path)
@@ -270,16 +370,31 @@ class RunStateEngine:
         all_completed = all(c.state == "COMPLETED" for c in self.chunks)
         integrity_errors = verify_manifest_integrity(self.manifest, self.layout.run_dir)
 
+        now_iso = datetime.now(timezone.utc).isoformat()
         if all_completed and not integrity_errors:
             self.manifest.state = "COMPLETED"
-            self.manifest.completed_at = datetime.now(timezone.utc).isoformat()
+            self.manifest.completed_at = now_iso
             save_detection_manifest(self.manifest, self.layout.detection_manifest_path)
+
+            if self.layout.run_manifest_path.exists():
+                self.run_manifest = load_run_manifest(self.layout.run_manifest_path)
+                self.run_manifest.state = "COMPLETED"
+                self.run_manifest.completed_at = now_iso
+                save_run_manifest(self.run_manifest, self.layout.run_manifest_path)
+
             self.logger.log("RUN_COMPLETED", run_id=self.layout.run_id)
             return "COMPLETED"
         else:
             self.manifest.state = "FAILED"
-            self.manifest.completed_at = datetime.now(timezone.utc).isoformat()
+            self.manifest.completed_at = now_iso
             save_detection_manifest(self.manifest, self.layout.detection_manifest_path)
+
+            if self.layout.run_manifest_path.exists():
+                self.run_manifest = load_run_manifest(self.layout.run_manifest_path)
+                self.run_manifest.state = "FAILED"
+                self.run_manifest.completed_at = now_iso
+                save_run_manifest(self.run_manifest, self.layout.run_manifest_path)
+
             self.logger.log(
                 "RUN_FINALIZATION_FAILED",
                 level="ERROR",
@@ -289,14 +404,27 @@ class RunStateEngine:
             return "FAILED"
 
     def invalidate_run(self, reason: str) -> None:
-        """Invalidates entire run artifacts due to incompatibility.
+        """Invalidates entire run artifacts consistently across manifests and chunk states.
         
         # ponytail: Wave 1 implements PID-1 Detection artifact invalidation only.
         # Ceiling: local stage reset. Upgrade path: DAG-based downstream invalidation across future PIDs.
         """
+        # Ensure chunks are loaded if available on disk
+        if not self.chunks and self.layout.chunks_path.exists():
+            try:
+                self.chunks = load_chunks_manifest(self.layout.chunks_path)
+            except Exception:
+                pass
+
         for c in self.chunks:
-            c.state = "INVALIDATED"
+            c.transition_to("INVALIDATED", allow_force=True)
             c.error_message = reason
+
+        if not self.manifest and self.layout.detection_manifest_path.exists():
+            try:
+                self.manifest = load_detection_manifest(self.layout.detection_manifest_path)
+            except Exception:
+                pass
 
         if self.manifest:
             self.manifest.state = "INVALIDATED"
@@ -304,6 +432,14 @@ class RunStateEngine:
 
         if self.chunks:
             save_chunks_manifest(self.chunks, self.layout.chunks_path)
+
+        if self.layout.run_manifest_path.exists():
+            try:
+                self.run_manifest = load_run_manifest(self.layout.run_manifest_path)
+                self.run_manifest.state = "INVALIDATED"
+                save_run_manifest(self.run_manifest, self.layout.run_manifest_path)
+            except Exception:
+                pass
 
         self.logger.log(
             "RUN_INVALIDATED",
