@@ -88,3 +88,34 @@ def test_parquet_streaming_batches_and_filtering(tmp_path):
     frame_batches = list(stream_partition_batches(out_file, start_frame=100, end_frame=105))
     total_framed = sum(b.num_rows for b in frame_batches)
     assert total_framed == 30  # 6 frames * 5 detections/frame
+
+    # Stream with column projection AND confidence filtering on unprojected column
+    proj_filtered = list(stream_partition_batches(
+        out_file,
+        columns=["frame_id", "x1", "y1"],
+        min_confidence=0.5,
+        start_frame=100,
+        end_frame=105,
+    ))
+    assert len(proj_filtered) > 0
+    assert proj_filtered[0].schema.names == ["frame_id", "x1", "y1"]
+
+
+def test_synthetic_fixtures(tmp_path):
+    from tests.fixtures.detections import (
+        create_test_detection_row,
+        create_test_detection_table,
+        create_test_multichunk_partitions,
+    )
+    row = create_test_detection_row()
+    assert row.schema_version == DETECTION_SCHEMA_VERSION
+
+    table = create_test_detection_table(50)
+    assert table.num_rows == 50
+    assert table.schema == DETECTION_PYARROW_SCHEMA
+
+    partitions = create_test_multichunk_partitions(frames_per_chunk=100, num_chunks=2)
+    assert len(partitions) == 2
+    assert partitions[0].num_rows == 200
+    assert partitions[1].num_rows == 200
+

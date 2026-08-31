@@ -367,7 +367,7 @@ class RunStateEngine:
         if not self.manifest:
             raise ValueError("No active manifest to finalize")
 
-        all_completed = all(c.state == "COMPLETED" for c in self.chunks)
+        all_completed = bool(self.chunks) and all(c.state == "COMPLETED" for c in self.chunks)
         integrity_errors = verify_manifest_integrity(self.manifest, self.layout.run_dir)
 
         now_iso = datetime.now(timezone.utc).isoformat()

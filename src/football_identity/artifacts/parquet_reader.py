@@ -58,7 +58,21 @@ def stream_partition_batches(
     except Exception as e:
         raise PartitionCorruptionError(f"Corrupted or invalid parquet file {p}: {e}") from e
 
-    for batch in parquet_file.iter_batches(batch_size=batch_size, columns=columns):
+    # Ensure predicate columns are loaded even if not in projection
+    required_filter_cols: set[str] = set()
+    if min_confidence is not None or max_confidence is not None:
+        required_filter_cols.add("confidence")
+    if start_frame is not None or end_frame is not None:
+        required_filter_cols.add("frame_id")
+
+    read_columns = None
+    needs_projection = False
+    if columns is not None:
+        read_columns = list(dict.fromkeys(list(columns) + list(required_filter_cols)))
+        if set(read_columns) != set(columns):
+            needs_projection = True
+
+    for batch in parquet_file.iter_batches(batch_size=batch_size, columns=read_columns):
         filtered_batch = batch
 
         # Build mask if filtering
@@ -81,6 +95,9 @@ def stream_partition_batches(
 
         if mask is not None:
             filtered_batch = pc.filter(filtered_batch, mask)
+
+        if needs_projection and columns is not None:
+            filtered_batch = filtered_batch.select(list(columns))
 
         if filtered_batch.num_rows > 0:
             yield filtered_batch

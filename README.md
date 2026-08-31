@@ -175,7 +175,7 @@ pip install pyarrow>=14.0.0 pyyaml>=6.0 pydantic>=2.0 pytest>=8.0
 
 ## Testing & Quality Verification
 
-All 35 tests pass with zero skips and zero failures.
+All 46 tests pass with zero skips and zero failures.
 
 ### Run All Mandatory Tests
 ```bash
@@ -187,13 +187,13 @@ python -m pytest tests/contracts tests/runtime tests/artifacts tests/integration
 # Run Contracts & Schema Invariants suite (13 tests)
 python -m pytest tests/contracts -v
 
-# Run State Engine, Resume & Invalidation suite (8 tests)
+# Run State Engine, Resume & Invalidation suite (17 tests)
 python -m pytest tests/runtime -v
 
-# Run Parquet IO, Atomic Publication & Layout suite (8 tests)
+# Run Parquet IO, Atomic Publication, Layout & Fixtures suite (10 tests)
 python -m pytest tests/artifacts -v
 
-# Run PID-2 Detector-Neutral Integration suite (3 tests)
+# Run PID-2 Detector-Neutral Integration suite (4 tests)
 python -m pytest tests/integration -v
 ```
 
@@ -203,7 +203,7 @@ python -m pytest tests/integration -v
 
 Detailed audit reports, test execution traces, and formal verification evidence are located under [`evidence/worker_a/`](./evidence/worker_a/):
 
-- 📖 **[Wave 1 Master Report & Testing Guide](./evidence/worker_a/README.md)** — Comprehensive technical breakdown, catalog of all 35 tests, and manual testing guide.
+- 📖 **[Wave 1 Master Report & Testing Guide](./evidence/worker_a/README.md)** — Comprehensive technical breakdown, catalog of all 46 tests, and manual testing guide.
 - 📊 **[Requirements Traceability Matrix](./evidence/worker_a/requirements_matrix.md)** — Item-by-item verification against the Work Order.
 - 📑 **[Formal Handoff Summary](./evidence/worker_a/handoff.md)** — Final delivery declaration.
 - 📜 **[Full Test Execution Log](./evidence/worker_a/test_output.txt)** — Uncut test output.

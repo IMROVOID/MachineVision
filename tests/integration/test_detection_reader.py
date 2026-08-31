@@ -190,3 +190,24 @@ def test_detector_independence():
     forbidden_modules = ["torch", "torchvision", "ultralytics", "cv2", "cuda", "tensorrt"]
     for mod in forbidden_modules:
         assert mod not in sys.modules, f"Forbidden detector module '{mod}' was loaded!"
+
+
+def test_stream_batches_schema_and_projection(two_chunk_run_fixture):
+    runs_root, run_id = two_chunk_run_fixture
+    reader = DetectionStreamReader(runs_root=runs_root, run_id=run_id)
+
+    # Stream full batches
+    batches = list(reader.stream_batches(sources="BASE_15FPS", batch_size=100))
+    assert len(batches) > 0
+    first_batch = batches[0]
+    assert first_batch.schema == DETECTION_PYARROW_SCHEMA
+    assert first_batch.schema.field("schema_version").type == pa.int16()
+    assert first_batch.schema.field("x1").type == pa.float32()
+
+    # Stream projected batches
+    proj_cols = ["frame_id", "detection_index", "confidence", "bottom_center_x", "bottom_center_y"]
+    proj_batches = list(reader.stream_batches(sources="BASE_15FPS", columns=proj_cols, batch_size=100))
+    assert len(proj_batches) > 0
+    assert proj_batches[0].schema.names == proj_cols
+    assert proj_batches[0].schema.field("bottom_center_x").type == pa.float32()
+

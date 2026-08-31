@@ -40,6 +40,7 @@ class DetectionItem:
     chunk_id: int
     run_id: str
     config_id: str
+    schema_version: int = 1
 
 
 class DetectionStreamReader:
@@ -126,6 +127,7 @@ class DetectionStreamReader:
         ):
             d = batch.to_pydict()
             num_rows = batch.num_rows
+            schema_versions = d.get("schema_version", [1] * num_rows)
             for i in range(num_rows):
                 yield DetectionItem(
                     frame_id=d["frame_id"][i],
@@ -144,6 +146,7 @@ class DetectionStreamReader:
                     chunk_id=d["chunk_id"][i],
                     run_id=d["run_id"][i],
                     config_id=d["config_id"][i],
+                    schema_version=schema_versions[i],
                 )
 
     def stream_detections(
@@ -208,6 +211,10 @@ class DetectionStreamReader:
         """Streams globally sorted PyArrow RecordBatches across chunks and sources."""
         buffer_rows: list[dict[str, Any]] = []
 
+        target_schema = DETECTION_PYARROW_SCHEMA
+        if columns is not None:
+            target_schema = pa.schema([DETECTION_PYARROW_SCHEMA.field(c) for c in columns])
+
         for item in self.stream_detections(
             sources=sources,
             start_frame=start_frame,
@@ -217,7 +224,7 @@ class DetectionStreamReader:
             batch_size=batch_size,
         ):
             row_dict = {
-                "schema_version": 1,
+                "schema_version": item.schema_version,
                 "run_id": item.run_id,
                 "chunk_id": item.chunk_id,
                 "frame_id": item.frame_id,
@@ -240,12 +247,12 @@ class DetectionStreamReader:
             buffer_rows.append(row_dict)
 
             if len(buffer_rows) >= batch_size:
-                table = pa.Table.from_pylist(buffer_rows)
+                table = pa.Table.from_pylist(buffer_rows, schema=target_schema)
                 for batch in table.to_batches():
                     yield batch
                 buffer_rows.clear()
 
         if buffer_rows:
-            table = pa.Table.from_pylist(buffer_rows)
+            table = pa.Table.from_pylist(buffer_rows, schema=target_schema)
             for batch in table.to_batches():
                 yield batch

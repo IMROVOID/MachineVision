@@ -329,14 +329,15 @@ def validate_detection_table(
 
     # 11. Monotonic ordering check by frame_id and timestamp_ms
     f_list = frame_ids.to_pylist()
+    t_list = timestamps.to_pylist()
     for i in range(1, len(f_list)):
         if f_list[i] < f_list[i - 1]:
             raise ValidationError(
                 f"Non-monotonic frame_id ordering at row {i}: {f_list[i-1]} -> {f_list[i]}"
             )
-        if timestamps[i].as_py() < timestamps[i - 1].as_py():
+        if t_list[i] < t_list[i - 1]:
             raise ValidationError(
-                f"Non-monotonic timestamp_ms ordering at row {i}: {timestamps[i-1].as_py()} -> {timestamps[i].as_py()}"
+                f"Non-monotonic timestamp_ms ordering at row {i}: {t_list[i-1]} -> {t_list[i]}"
             )
 
 

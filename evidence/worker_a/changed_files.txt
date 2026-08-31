@@ -15,6 +15,7 @@ src/football_identity/runtime/chunk_state.py
 src/football_identity/runtime/state_engine.py
 src/football_identity/integration/__init__.py
 src/football_identity/integration/detection_reader.py
+tests/__init__.py
 tests/contracts/__init__.py
 tests/contracts/test_config.py
 tests/contracts/test_detection.py
@@ -32,6 +33,9 @@ tests/runtime/test_invalidation.py
 tests/runtime/test_regression_repairs.py
 tests/integration/__init__.py
 tests/integration/test_detection_reader.py
+tests/fixtures/__init__.py
+tests/fixtures/detections/__init__.py
+tests/fixtures/detections/synthetic.py
 pyproject.toml
 README.md
 dependency_changes.txt
